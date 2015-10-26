@@ -1,6 +1,6 @@
 include_directories(../include)
 
-add_library(CARL SHARED CARL_graph.cpp CARL_graph_utils.cpp)
+add_library(CARL SHARED CARL_graph.cpp)
 set_property(TARGET CARL PROPERTY CPP_STANDARD 11)
 #target_include_directories (CARL PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

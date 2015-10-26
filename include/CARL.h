@@ -38,10 +38,6 @@ class Graph
 template <class T_E_weight, class T_V_weight>
 Graph<T_E_weight, T_V_weight> *CARL_graph_calloc(int vertices, int edges);
 
-void *CARL_malloc (int n, size_t size);
-void *CARL_calloc (int n, size_t size);
-void *CARL_free (void *p);
-
 #define CARL_MAX(a,b) (((a) > (b)) ? (a) : (b))
 #define CARL_MIN(a,b) (((a) < (b)) ? (a) : (b))
 
