@@ -2,7 +2,7 @@ include_directories(../include)
 
 add_library(CARL SHARED CARL_graph.cpp CARL_graph_utils.cpp)
 set_property(TARGET CARL PROPERTY CPP_STANDARD 11)
-target_include_directories (CARL PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+#target_include_directories (CARL PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(MSVC)
   # Force to always compile with W4
