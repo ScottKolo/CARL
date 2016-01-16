@@ -1,6 +1,6 @@
 include_directories(../include)
 
-add_library(CARL SHARED CARL_graph.cpp)
+add_library(CARL SHARED heavy_edge_matching.cpp)
 set_property(TARGET CARL PROPERTY CPP_STANDARD 11)
 #target_include_directories (CARL PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

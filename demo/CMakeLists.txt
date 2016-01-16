@@ -1,4 +1,6 @@
+cmake_minimum_required(VERSION 3.3)
 include_directories(../include)
 include_directories(.)
-add_executable(Demo demo.cpp mmio.c)
-target_link_libraries (Demo LINK_PUBLIC CARL)
+add_executable(Demo demo.cpp)
+target_link_libraries (Demo LINK_PUBLIC CARL boost_graph)
+set_property (TARGET Demo PROPERTY CXX_STANDARD 11)

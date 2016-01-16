@@ -1,126 +1,50 @@
-// A simple program that computes the square root of a number
 #include <cstdio>
 #include <iostream>
+#include <fstream>
 #include <cstdlib>
 #include <math.h>
 #include "CARL.h"
-extern "C"{
-#include "mmio.h"
-}
+
+#include <utility>                   // for std::pair
+#include <algorithm>                 // for std::for_each
+#include <string>
+#include <tuple>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/container/allocator.hpp>
+#include <boost/tokenizer.hpp>
+#include <boost/algorithm/string.hpp>
 
 using namespace CARL;
 
+enum class MatrixMarket_Object   { kMatrix = 'M' };
+enum class MatrixMarket_Format   { kArray = 'A', kCoordinate = 'C' };
+enum class MatrixMarket_Field    { kReal = 'R', kInteger = 'I', kComplex = 'C', kPattern = 'P' };
+enum class MatrixMarket_Symmetry { kGeneral = 'G', kSymmetric = 'S', kSkewSymmetric = 'K', kHermitian = 'H' };
+
+std::tuple<MatrixMarket_Object,
+           MatrixMarket_Format,
+           MatrixMarket_Field,
+           MatrixMarket_Symmetry> 
+           read_matrix_market_header (std::string header_line);
+
+MatrixMarket_Object parse_MatrixMarket_Object(std::string object_string);
+MatrixMarket_Format parse_MatrixMarket_Format(std::string format_string);
+MatrixMarket_Field parse_MatrixMarket_Field(std::string field_string);
+MatrixMarket_Symmetry parse_MatrixMarket_Symmetry(std::string symmetry_string);
+
+std::tuple<unsigned long, unsigned long> parse_input_line(std::string line);
+
+boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> read_graph (std::string filename);
+
 int main (int argc, char *argv[])
 {
-    int ret_code;
-    MM_typecode matcode;
-    FILE *f;
-    int M, N, nz;   
-    int i;
+    std::string str(argv[1]);
 
-    // Get filename of matrix market file from command line
-    if (argc != 2)
-    {
-        fprintf(stderr, "Usage: %s [martix-market-filename]\n", argv[0]);
-        return 0;
-    }
-    else    
-    { 
-        if ((f = fopen(argv[1], "r")) == NULL)
-        {
-            // Problem opening file
-            printf("Error: Cannot open file %s\n", argv[1]);
-            return 0;
-        }
-    }
-
-    if (mm_read_banner(f, &matcode) != 0)
-    {
-        printf("Could not process Matrix Market banner.\n");
-        return 0;
-    }
-
-    /*  This is how one can screen matrix types if their application */
-    /*  only supports a subset of the Matrix Market data types.      */
-
-    if (mm_is_complex(matcode) && mm_is_matrix(matcode) && 
-            mm_is_sparse(matcode) )
-    {
-        printf("Sorry, this application does not support ");
-        printf("Market Market type: [%s]\n", mm_typecode_to_str(matcode));
-        exit(1);
-    }
-
-    /* find out size of sparse matrix .... */
-
-    if ((ret_code = mm_read_mtx_crd_size(f, &M, &N, &nz)) !=0)
-        exit(1);
-
-
-    /* reserve memory for matrices */
-
-    std::vector<int> I(2*nz-N);
-    std::vector<int> J(2*nz-N);
-    std::vector<double> val(2*nz-N);
-
-    // mm_read_mtx_crd_data(f, M, N, nz, I, J, val, matcode);
-    // for (int i = 0; i < nz; i++)
-    // {
-    //     I[i]--;
-    //     J[i]--;
-    //     val[i] = 1;
-    // }
-
-    // if (mm_is_symmetric(matcode) && mm_is_pattern(matcode))
-    // {
-    //     int *I_temp = (int *) malloc((2*nz-N) * sizeof())    
-    // }
-
-    /* NOTE: when reading in doubles, ANSI C requires the use of the "l"  */
-    /*   specifier as in "%lg", "%lf", "%le", otherwise errors will occur */
-    /*  (ANSI C X3.159-1989, Sec. 4.9.6.2, p. 136 lines 13-15)            */
-
-    int n = 0;
-    for (i = 0; i < nz; i++)
-    {
-        if (mm_is_symmetric(matcode) && mm_is_pattern(matcode))
-        {
-            fscanf(f, "%d %d\n", &I[n], &J[n]);
-            I[n]--;  /* adjust from 1-based to 0-based */
-            J[n]--;
-            val[n] = 1;
-            //printf("%d %d %d %f\n", n, I[n], J[n], val[n]);
-            n++;
-            if (I[n-1] != J[n-1])
-            {
-                I[n] = J[n-1];
-                J[n] = I[n-1];
-                val[n] = val[n-1];
-                //printf("%d %d %d %f\n", n, I[n], J[n], val[n]);
-                n++; 
-            }
-        }
-    }
-
-    if (f != stdin) fclose(f);
-    //return 0;
-    // Read in matrix market file into Graph
-
-    Graph<double, double> graph(n, N, I, J, val);
+    read_graph(str);
+    
     // Check if Graph is valid
     // Check if matrix is symmetric
-    std::cout << "Checking to ensure the graph is undirected..." << std::endl;
-    int ok = 0;
-    //CARL_print(graph, 0);
-    if (graph.is_directed())
-    {
-        std::cout << "CARL Error: Cannot coarsen a directed graph" << std::endl;
-        return 0;
-    }
-    else
-    {
-        std::cout << "Graph is undirected (matrix is symmetric)" << std::endl;
-    }
 
     // Ignore diagonal - self edges are irrelevant
 
@@ -134,12 +58,193 @@ int main (int argc, char *argv[])
     //Graph<double,double> coarse_graph = graph.coarsen();
 
     // Report graph data before
-    graph.print(true);
+    //graph.print(true);
 
     // Report graph data after
     //coarse_graph.print();
 
-    printf("Demo Complete!\n");
+    std::cout << "Demo Complete!" << std::endl;
 
     return 0;
+}
+
+boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> read_graph (std::string filename)
+{
+    std::ifstream file_in (filename);
+    std::string line;
+
+    // Read Header
+    std::getline(file_in, line);
+    auto typecode = read_matrix_market_header(line);
+    std::cout << "Typecode: " 
+              << (char)std::get<0>(typecode) 
+              << (char)std::get<1>(typecode)
+              << (char)std::get<2>(typecode) 
+              << (char)std::get<3>(typecode) << std::endl;
+
+    while (std::getline(file_in, line))
+    {
+        if (line.length() < 1 || line[0] == '%' || line[0] == ' ')
+        {
+            // Skip any empty or commented lines
+            continue;
+        }
+        else
+        {
+            break;
+        }
+    }
+    
+    // Parse rows, columns, and line number data
+    unsigned long rows, cols, num_lines;
+    boost::tokenizer<> tokenized_line(line);
+    boost::tokenizer<>::iterator line_iterator = tokenized_line.begin();
+    rows      = std::stoul(*(line_iterator++));
+    cols      = std::stoul(*(line_iterator++));
+    num_lines = std::stoul(*(line_iterator++));
+
+    std::cout << "Rows: " << rows << ", Columns: " << cols << ", Lines: " << num_lines << std::endl;
+
+    // create a typedef for the Graph type
+    typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> Graph;
+
+    // Declare a graph object
+    Graph graph(rows);
+    unsigned long row, column;
+
+    while (std::getline(file_in, line))
+    {
+        // Parse the input line
+        std::tie(row, column) = parse_input_line(line);
+
+        // Add the edges to the graph object
+        boost::add_edge(row, column, graph);
+    }
+
+    boost::graph_traits<Graph>::vertex_iterator vi, vi_end;
+    boost::graph_traits<Graph>::adjacency_iterator ni, ni_end;
+    for (std::tie(vi, vi_end) = boost::vertices(graph); vi != vi_end; ++vi)
+    {
+        std::cout << "Vertex " << *vi << " has neighbors: ";
+        for (std::tie(ni,ni_end) = boost::adjacent_vertices(*vi, graph); ni != ni_end; ++ni)
+        {
+            std::cout << *ni << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    return graph;
+}
+
+std::tuple<MatrixMarket_Object,
+           MatrixMarket_Format,
+           MatrixMarket_Field,
+           MatrixMarket_Symmetry> 
+           read_matrix_market_header (std::string header_line)
+{
+    std::vector<std::string> tokenized_header;
+    boost::split(tokenized_header, header_line, boost::is_any_of("\t "));
+
+    std::tuple<MatrixMarket_Object,
+               MatrixMarket_Format,
+               MatrixMarket_Field,
+               MatrixMarket_Symmetry> typecode;
+
+    typecode = std::make_tuple(parse_MatrixMarket_Object  (tokenized_header[1]),
+                               parse_MatrixMarket_Format  (tokenized_header[2]),
+                               parse_MatrixMarket_Field   (tokenized_header[3]),
+                               parse_MatrixMarket_Symmetry(tokenized_header[4]));
+
+    // TODO: Check Header Validity
+
+    return typecode;
+}
+
+MatrixMarket_Object parse_MatrixMarket_Object(std::string object_string)
+{
+    if (boost::iequals(object_string, "matrix"))
+    {
+        return MatrixMarket_Object::kMatrix;
+    }
+    else
+    {
+        throw "Invalid Matrix Market object type";
+    }
+}
+
+MatrixMarket_Format parse_MatrixMarket_Format(std::string format_string)
+{
+    if (boost::iequals(format_string, "array"))
+    {
+        return MatrixMarket_Format::kArray;
+    }
+    else if (boost::iequals(format_string, "coordinate"))
+    {
+        return MatrixMarket_Format::kCoordinate;
+    }
+    else
+    {
+        throw "Invalid Matrix Market format type";
+    }
+}
+
+MatrixMarket_Field parse_MatrixMarket_Field(std::string field_string)
+{
+    if (boost::iequals(field_string, "real"))
+    {
+        return MatrixMarket_Field::kReal;
+    }
+    else if (boost::iequals(field_string, "integer"))
+    {
+        return MatrixMarket_Field::kInteger;
+    }
+    else if (boost::iequals(field_string, "complex"))
+    {
+        return MatrixMarket_Field::kComplex;
+    }
+    else if (boost::iequals(field_string, "pattern"))
+    {
+        return MatrixMarket_Field::kPattern;
+    }
+    else
+    {
+        throw "Invalid Matrix Market field type";
+    }
+}
+
+MatrixMarket_Symmetry parse_MatrixMarket_Symmetry(std::string symmetry_string)
+{
+    if (boost::iequals(symmetry_string, "general"))
+    {
+        return MatrixMarket_Symmetry::kGeneral;
+    }
+    else if (boost::iequals(symmetry_string, "symmetric"))
+    {
+        return MatrixMarket_Symmetry::kSymmetric;
+    }
+    else if (boost::iequals(symmetry_string, "skew-symmetric"))
+    {
+        return MatrixMarket_Symmetry::kSkewSymmetric;
+    }
+    else if (boost::iequals(symmetry_string, "hermitian"))
+    {
+        return MatrixMarket_Symmetry::kHermitian;
+    }
+    else
+    {
+        throw "Invalid Matrix Market symmetry type";
+    }
+}
+
+std::tuple<unsigned long, unsigned long> parse_input_line(std::string line)
+{
+    std::vector<std::string> tokenized_line;
+    boost::split(tokenized_line, line, boost::is_any_of("\t "));
+
+    std::tuple<unsigned long, unsigned long> parsed_line;
+
+    parsed_line = std::make_tuple(std::stoul(tokenized_line[0]),
+                                  std::stoul(tokenized_line[1]));
+
+    return parsed_line;
 }
