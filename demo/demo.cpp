@@ -1,136 +1,140 @@
-#include <cstdio>
-#include <iostream>
+#include <boost/algorithm/string/classification.hpp>         // for is_any_of
+#include <boost/algorithm/string/detail/classification.hpp>  // for is_any_ofF
+#include <boost/algorithm/string/predicate.hpp>              // for iequals
+#include <boost/algorithm/string/split.hpp>                  // for split
+#include <boost/concept/usage.hpp>                           // for SinglePa...
+#include <boost/graph/adjacency_iterator.hpp>                // for adjacenc...
+#include <boost/graph/adjacency_list.hpp>                    // for vecS (pt...
+#include <boost/graph/graph_selectors.hpp>                   // for undirectedS
+#include <boost/graph/graph_traits.hpp>                      // for graph_tr...
+#include <boost/iterator/iterator_facade.hpp>                // for operator!=
+#include <boost/range/irange.hpp>                            // for integer_...
+#include <iostream>                                          // for string
+#include <iterator>                                          // for istream_...
 #include <fstream>
-#include <cstdlib>
-#include <math.h>
-#include "CARL.h"
+#include <string>   // for basic_st...
+#include <tuple>    // for tuple
+#include <utility>  // for pair
+#include <vector>   // for vector
 
-#include <utility>                   // for std::pair
-#include <algorithm>                 // for std::for_each
-#include <string>
-#include <tuple>
-#include <boost/graph/graph_traits.hpp>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/tokenizer.hpp>
-#include <boost/algorithm/string.hpp>
+// using namespace CARL;
 
-using namespace CARL;
-
-enum class MatrixMarket_Object   { kMatrix = 'M' };
-enum class MatrixMarket_Format   { kArray = 'A', kCoordinate = 'C' };
-enum class MatrixMarket_Field    { kReal = 'R', kInteger = 'I', kComplex = 'C', kPattern = 'P' };
-enum class MatrixMarket_Symmetry { kGeneral = 'G', kSymmetric = 'S', kSkewSymmetric = 'K', kHermitian = 'H' };
+enum class MatrixMarket_Object
+{
+    kMatrix = 'M'
+};
+enum class MatrixMarket_Format
+{
+    kArray = 'A',
+    kCoordinate = 'C'
+};
+enum class MatrixMarket_Field
+{
+    kReal = 'R',
+    kInteger = 'I',
+    kComplex = 'C',
+    kPattern = 'P'
+};
+enum class MatrixMarket_Symmetry
+{
+    kGeneral = 'G',
+    kSymmetric = 'S',
+    kSkewSymmetric = 'K',
+    kHermitian = 'H'
+};
 
 std::tuple<MatrixMarket_Object,
            MatrixMarket_Format,
            MatrixMarket_Field,
-           MatrixMarket_Symmetry> 
-           read_matrix_market_header (std::string header_line);
+           MatrixMarket_Symmetry>
+read_matrix_market_header(std::string header_line);
 
 MatrixMarket_Object parse_MatrixMarket_Object(std::string object_string);
 MatrixMarket_Format parse_MatrixMarket_Format(std::string format_string);
 MatrixMarket_Field parse_MatrixMarket_Field(std::string field_string);
 MatrixMarket_Symmetry parse_MatrixMarket_Symmetry(std::string symmetry_string);
 
-std::tuple<unsigned long, unsigned long> parse_input_line(std::string line);
+boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> read_graph(
+    std::string filename);
 
-boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> read_graph (std::string filename);
+namespace std {  // Begin namespace std
+template <typename T>
+std::istream &operator>>(std::istream &in, std::pair<T, T> &p)
+{
+    in >> p.first >> p.second;
+    return in;
+}
+}  // End namespace std
 
-int main (int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     std::string str(argv[1]);
 
     read_graph(str);
-    
+
     // Check if Graph is valid
     // Check if matrix is symmetric
 
     // Ignore diagonal - self edges are irrelevant
 
     // Coarsen until 50 or fewer nodes
-    //Graph<double,double> coarse_graph_50_vertices = graph.coarsen_until(50);
+    // Graph<double,double> coarse_graph_50_vertices = graph.coarsen_until(50);
 
     // Or coarsen 5 times
-    //Graph<double,double> coarse_graph_5_times = graph.coarsen(5);
-    
+    // Graph<double,double> coarse_graph_5_times = graph.coarsen(5);
+
     // Or coarsen just once
-    //Graph<double,double> coarse_graph = graph.coarsen();
+    // Graph<double,double> coarse_graph = graph.coarsen();
 
     // Report graph data before
-    //graph.print(true);
+    // graph.print(true);
 
     // Report graph data after
-    //coarse_graph.print();
+    // coarse_graph.print();
 
     std::cout << "Demo Complete!" << std::endl;
 
     return 0;
 }
 
-boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> read_graph (std::string filename)
+boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> 
+read_graph(std::string filename)
 {
-    std::ifstream file_in (filename);
+    std::ifstream file_in(filename);
     std::string line;
 
     // Read Header
     std::getline(file_in, line);
     auto typecode = read_matrix_market_header(line);
     std::cout << "Typecode: " 
-              << (char)std::get<0>(typecode) 
+              << (char)std::get<0>(typecode)
               << (char)std::get<1>(typecode)
-              << (char)std::get<2>(typecode) 
+              << (char)std::get<2>(typecode)
               << (char)std::get<3>(typecode) << std::endl;
 
-    while (std::getline(file_in, line))
+    // Skip commented lines
+    while (!file_in.eof() && file_in.peek() == '%')
     {
-        if (line.length() < 1 || line[0] == '%' || line[0] == ' ')
-        {
-            // Skip any empty or commented lines
-            continue;
-        }
-        else
-        {
-            break;
-        }
+        std::getline(file_in, line);
     }
-    
-    // Parse rows, columns, and line number data
-    unsigned long rows, cols, num_lines;
-    boost::tokenizer<> tokenized_line(line);
-    boost::tokenizer<>::iterator line_iterator = tokenized_line.begin();
-    rows      = std::stoul(*(line_iterator++));
-    cols      = std::stoul(*(line_iterator++));
-    num_lines = std::stoul(*(line_iterator++));
 
-    std::cout << "Rows: " << rows << ", Columns: " << cols << ", Lines: " << num_lines << std::endl;
+    // Read rows, columns, and number of lines
+    unsigned long rows, cols, num_lines;
+    file_in >> rows >> cols >> num_lines;
+
+    std::cout <<   "Rows: "    << rows 
+              << ", Columns: " << cols
+              << ", Lines: "   << num_lines << std::endl;
 
     // create a typedef for the Graph type
-    typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> Graph;
+    typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS>
+        Graph;
 
-    // Declare a graph object
-    Graph graph(rows);
-    unsigned long row, column;
+    std::istream_iterator<std::pair<unsigned long, unsigned long>> 
+        input_begin(file_in), input_end;
 
-    while (std::getline(file_in, line))
-    {
-        // Parse the input line
-        std::tie(row, column) = parse_input_line(line);
-
-        // Add the edges to the graph object
-        boost::add_edge(row, column, graph);
-    }
-
-    boost::graph_traits<Graph>::vertex_iterator vi, vi_end;
-    boost::graph_traits<Graph>::adjacency_iterator ni, ni_end;
-    for (std::tie(vi, vi_end) = boost::vertices(graph); vi != vi_end; ++vi)
-    {
-        std::cout << "Vertex " << *vi << " has neighbors: ";
-        for (std::tie(ni,ni_end) = boost::adjacent_vertices(*vi, graph); ni != ni_end; ++ni)
-        {
-            std::cout << *ni << " ";
-        }
-        std::cout << std::endl;
-    }
+    // Create the graph object
+    Graph graph(input_begin, input_end, rows, num_lines);
 
     return graph;
 }
@@ -138,8 +142,8 @@ boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> read_graph (
 std::tuple<MatrixMarket_Object,
            MatrixMarket_Format,
            MatrixMarket_Field,
-           MatrixMarket_Symmetry> 
-           read_matrix_market_header (std::string header_line)
+           MatrixMarket_Symmetry>
+read_matrix_market_header(std::string header_line)
 {
     std::vector<std::string> tokenized_header;
     boost::split(tokenized_header, header_line, boost::is_any_of("\t "));
@@ -149,10 +153,11 @@ std::tuple<MatrixMarket_Object,
                MatrixMarket_Field,
                MatrixMarket_Symmetry> typecode;
 
-    typecode = std::make_tuple(parse_MatrixMarket_Object  (tokenized_header[1]),
-                               parse_MatrixMarket_Format  (tokenized_header[2]),
-                               parse_MatrixMarket_Field   (tokenized_header[3]),
-                               parse_MatrixMarket_Symmetry(tokenized_header[4]));
+    typecode =
+        std::make_tuple(parse_MatrixMarket_Object(tokenized_header[1]),
+                        parse_MatrixMarket_Format(tokenized_header[2]),
+                        parse_MatrixMarket_Field(tokenized_header[3]),
+                        parse_MatrixMarket_Symmetry(tokenized_header[4]));
 
     // TODO: Check Header Validity
 
@@ -233,17 +238,4 @@ MatrixMarket_Symmetry parse_MatrixMarket_Symmetry(std::string symmetry_string)
     {
         throw "Invalid Matrix Market symmetry type";
     }
-}
-
-std::tuple<unsigned long, unsigned long> parse_input_line(std::string line)
-{
-    std::vector<std::string> tokenized_line;
-    boost::split(tokenized_line, line, boost::is_any_of("\t "));
-
-    std::tuple<unsigned long, unsigned long> parsed_line;
-
-    parsed_line = std::make_tuple(std::stoul(tokenized_line[0]),
-                                  std::stoul(tokenized_line[1]));
-
-    return parsed_line;
 }
