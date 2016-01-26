@@ -1,7 +1,7 @@
 include_directories(../include)
 
 add_library(CARL SHARED heavy_edge_matching.cpp)
-set_property(TARGET CARL PROPERTY CPP_STANDARD 11)
+set_property(TARGET CARL PROPERTY CPP_STANDARD 14)
 #target_include_directories (CARL PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(MSVC)

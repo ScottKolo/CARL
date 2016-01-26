@@ -3,10 +3,6 @@
 #include <boost/algorithm/string/predicate.hpp>              // for iequals
 #include <boost/algorithm/string/split.hpp>                  // for split
 #include <boost/concept/usage.hpp>                           // for SinglePa...
-#include <boost/graph/adjacency_iterator.hpp>                // for adjacenc...
-#include <boost/graph/adjacency_list.hpp>                    // for vecS (pt...
-#include <boost/graph/graph_selectors.hpp>                   // for undirectedS
-#include <boost/graph/graph_traits.hpp>                      // for graph_tr...
 #include <boost/iterator/iterator_facade.hpp>                // for operator!=
 #include <boost/range/irange.hpp>                            // for integer_...
 #include <iostream>                                          // for string
@@ -17,7 +13,7 @@
 #include <utility>  // for pair
 #include <vector>   // for vector
 
-// using namespace CARL;
+#include "CARL.h"
 
 enum class MatrixMarket_Object
 {
@@ -54,8 +50,7 @@ MatrixMarket_Format parse_MatrixMarket_Format(std::string format_string);
 MatrixMarket_Field parse_MatrixMarket_Field(std::string field_string);
 MatrixMarket_Symmetry parse_MatrixMarket_Symmetry(std::string symmetry_string);
 
-boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> read_graph(
-    std::string filename);
+CARL::Graph read_graph(std::string filename);
 
 namespace std {  // Begin namespace std
 template <typename T>
@@ -68,10 +63,10 @@ std::istream &operator>>(std::istream &in, std::pair<T, T> &p)
 
 int main(int argc, char *argv[])
 {
-    std::string str(argv[1]);
+    const std::string filename(argv[1]);
 
-    read_graph(str);
-
+    CARL::Graph graph = read_graph(filename);
+    CARL::coarsen_heavy_edge(graph);
     // Check if Graph is valid
     // Check if matrix is symmetric
 
@@ -97,8 +92,8 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS> 
-read_graph(std::string filename)
+CARL::Graph
+read_graph(const std::string filename)
 {
     std::ifstream file_in(filename);
     std::string line;
@@ -126,15 +121,11 @@ read_graph(std::string filename)
               << ", Columns: " << cols
               << ", Lines: "   << num_lines << std::endl;
 
-    // create a typedef for the Graph type
-    typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS>
-        Graph;
-
     std::istream_iterator<std::pair<unsigned long, unsigned long>> 
         input_begin(file_in), input_end;
 
     // Create the graph object
-    Graph graph(input_begin, input_end, rows, num_lines);
+    CARL::Graph graph(input_begin, input_end, rows, num_lines);
 
     return graph;
 }
