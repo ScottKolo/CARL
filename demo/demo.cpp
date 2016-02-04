@@ -13,7 +13,7 @@
 #include <utility>  // for pair
 #include <vector>   // for vector
 
-#include "CARL.h"
+#include "CARL.hpp"
 
 enum class MatrixMarket_Object
 {
@@ -51,15 +51,6 @@ MatrixMarket_Field parse_MatrixMarket_Field(std::string field_string);
 MatrixMarket_Symmetry parse_MatrixMarket_Symmetry(std::string symmetry_string);
 
 CARL::Graph read_graph(std::string filename);
-
-namespace std {  // Begin namespace std
-template <typename T>
-std::istream &operator>>(std::istream &in, std::pair<T, T> &p)
-{
-    in >> p.first >> p.second;
-    return in;
-}
-}  // End namespace std
 
 int main(int argc, char *argv[])
 {
@@ -121,11 +112,35 @@ read_graph(const std::string filename)
               << ", Columns: " << cols
               << ", Lines: "   << num_lines << std::endl;
 
-    std::istream_iterator<std::pair<unsigned long, unsigned long>> 
-        input_begin(file_in), input_end;
-
     // Create the graph object
-    CARL::Graph graph(input_begin, input_end, rows, num_lines);
+    CARL::Graph graph(rows);
+    CARL::Vertex v1, v2;
+    CARL::EdgeWeight weight;
+
+    if(std::get<2>(typecode) == MatrixMarket_Field::kPattern)
+    {
+        // Unweighted graph - assume all edge weights are 1
+        while(!file_in.eof())
+        {
+            file_in >> v1 >> v2;
+            if(v1 != v2)
+            {
+                boost::add_edge(v1, v2, 1, graph);
+            }
+        }
+    }
+    else
+    {
+        // Weighted graph - read in edge weights
+        while(!file_in.eof())
+        {
+            file_in >> v1 >> v2 >> weight;
+            if(v1 != v2)
+            {
+                boost::add_edge(v1, v2, weight, graph);
+            }
+        }
+    }
 
     return graph;
 }
