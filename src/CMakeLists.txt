@@ -1,7 +1,12 @@
+find_package(Boost)
 include_directories(../include)
+include_directories(${Boost_INCLUDE_DIRS})
+
+set(Boost_USE_MULTITHREADED ON)
+set(CMAKE_CXX_FLAGS "-O3")
 
 add_library(CARL SHARED heavy_edge_matching.cpp)
-set_property(TARGET CARL PROPERTY CPP_STANDARD 14)
+set_property(TARGET CARL PROPERTY CXX_STANDARD 11)
 #target_include_directories (CARL PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(MSVC)
