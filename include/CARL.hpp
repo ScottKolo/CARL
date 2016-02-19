@@ -36,16 +36,12 @@ heavy_edge_matching(const Graph& g, MateMap mate);
 template <typename GraphType, typename MateMap>
 struct HeavyEdgeMatchingFinder
 {
-    typedef typename
-        boost::graph_traits<GraphType>::vertex_descriptor Vertex;
-    typedef typename
-        boost::graph_traits<GraphType>::vertex_iterator VertexIterator;
-    typedef typename
-        boost::graph_traits<GraphType>::edge_descriptor Edge;
-    typedef typename
-        boost::graph_traits<GraphType>::out_edge_iterator EdgeIterator;
-    typedef typename
-        boost::graph_traits<GraphType>::adjacency_iterator AdjacencyIterator;
+    typedef typename boost::graph_traits<GraphType> graph_traits;
+    typedef typename graph_traits::vertex_descriptor Vertex;
+    typedef typename graph_traits::vertex_iterator VertexIterator;
+    typedef typename graph_traits::edge_descriptor Edge;
+    typedef typename graph_traits::out_edge_iterator EdgeIterator;
+    typedef typename graph_traits::adjacency_iterator AdjacencyIterator;
     typedef typename
             boost::property_map<GraphType, boost::edge_weight_t>::const_type 
             EdgeWeightMap;
@@ -55,7 +51,7 @@ struct HeavyEdgeMatchingFinder
     {
         VertexIterator vi, vi_end;
         EdgeIterator ei, ei_end;
-        Vertex null_vertex = boost::graph_traits<GraphType>::null_vertex();
+        Vertex null_vertex = graph_traits::null_vertex();
 
         EdgeWeightMap edgeWeightMap = get(boost::edge_weight, graph);
 
@@ -123,6 +119,64 @@ inline void
 heavy_edge_matching(const Graph& g, MateMap mate)
 {
     heavy_edge_matching(g, mate, get(boost::vertex_index, g));
+}
+
+template <typename MateMap>
+Graph
+coarsen(const Graph& graph, const MateMap& match)
+{
+    typedef typename boost::graph_traits<Graph> graph_traits;
+    typedef typename graph_traits::vertex_descriptor Vertex;
+    typedef typename graph_traits::vertex_iterator VertexIterator;
+    typedef typename graph_traits::edge_descriptor Edge;
+    typedef typename graph_traits::edge_iterator EdgeIterator;
+    typedef typename graph_traits::adjacency_iterator AdjacencyIterator;
+    typedef typename
+            boost::property_map<Graph, boost::edge_weight_t>::const_type 
+            EdgeWeightMap;
+
+    VertexIterator vi, vi_end;
+    EdgeIterator ei, ei_end;
+    Vertex null_vertex = graph_traits::null_vertex();
+
+    boost::graph_traits<Graph>::vertices_size_type n_vertices = 
+        num_vertices(graph);
+    Graph coarse_graph(n_vertices - boost::matching_size(graph, &match[0]));
+
+    Vertex v1, v2;
+    EdgeWeight weight;
+
+    EdgeWeightMap edgeWeightMap = get(boost::edge_weight, graph);
+
+    Edge coarse_edge;
+    bool exists;
+    EdgeWeight old_weight;
+    // Iterate over all edges in the graph
+    for (std::tie(ei, ei_end) = boost::edges(graph); ei != ei_end; ++ei)
+    {
+        if(match[source(*ei, graph)] != null_vertex && 
+            match[source(*ei, graph)] != target(*ei, graph))
+        {
+            v1 = source(*ei, graph);
+            v2 = target(*ei, graph);
+            weight = boost::get(boost::edge_weight, graph, *ei);
+
+            std::tie(coarse_edge, exists) = boost::edge(v1, v2, coarse_graph);
+            if(exists)
+            {
+                // If edge exists already, add to the weight
+                old_weight = boost::get(boost::edge_weight, graph, coarse_edge);
+                boost::put(boost::edge_weight, coarse_graph, coarse_edge, weight+old_weight);
+            }
+            else
+            {
+                // Otherwise, make a new edge
+                boost::add_edge(v1, v2, weight, coarse_graph);
+            }
+        }
+    }
+
+    return graph;
 }
 
 }  // End namespace CARL

@@ -15,9 +15,12 @@ Graph coarsen_heavy_edge(Graph graph)
     // TODO: Should not have to initialize vector to null_vertex
     // TODO: May be able to use iterator_property_map for speedup
 
-    heavy_edge_matching(graph, &match[0]);
-    
+    std::vector<Graph> graphs;
+    graphs.push_back(graph);
 
+    heavy_edge_matching(graph, &match[0]);
+
+    /*
     boost::graph_traits<Graph>::vertex_iterator vi, vi_end;
     for(boost::tie(vi,vi_end) = vertices(graph); vi != vi_end; ++vi)
     {
@@ -26,8 +29,11 @@ Graph coarsen_heavy_edge(Graph graph)
             std::cout << "{" << *vi << ", " << match[*vi] << "}" << std::endl;
         }
     }
-
+    */
+    //std::cout << "TEST!" << std::endl;
     // Matching done, need to coarsen
+    graphs.push_back(coarsen(graphs[0], match));
+    //std::cout << "TEST END!" << std::endl;
 
     return graph;
 }

@@ -5,6 +5,7 @@
 #include <boost/concept/usage.hpp>                           // for SinglePa...
 #include <boost/iterator/iterator_facade.hpp>                // for operator!=
 #include <boost/range/irange.hpp>                            // for integer_...
+#include <boost/timer/timer.hpp>
 #include <iostream>                                          // for string
 #include <iterator>                                          // for istream_...
 #include <fstream>
@@ -57,6 +58,7 @@ int main(int argc, char *argv[])
     const std::string filename(argv[1]);
 
     CARL::Graph graph = read_graph(filename);
+    boost::timer::auto_cpu_timer t;
     CARL::coarsen_heavy_edge(graph);
     // Check if Graph is valid
     // Check if matrix is symmetric
